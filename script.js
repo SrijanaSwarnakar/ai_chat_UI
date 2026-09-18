@@ -11,19 +11,6 @@ let chat;
 
 
 // ===============================
-// MOCK AI RESPONSES
-// ===============================
-
-const mockResponses = [
-    "Hello! How can I help you?",
-    "That's a good question. Let me explain it.",
-    "I can help you with HTML, CSS, JavaScript, and Django.",
-    "This is a simulated AI response.",
-    "Great! Let's solve this step by step."
-];
-
-
-// ===============================
 // LOAD CHATS FROM LOCAL STORAGE
 // ===============================
 
@@ -168,6 +155,7 @@ newChatButton.addEventListener(
         );
 
         messages.innerHTML = "";
+
         messageInput.focus();
     }
 );
@@ -207,21 +195,21 @@ clearButton.addEventListener(
 
 sendButton.addEventListener(
     "click",
-    function () {
+    async function () {
 
-        const userText = messageInput.value;
+        const userText = messageInput.value.trim();
 
         // Prevent empty messages
-        if (userText.trim() === "") {
+        if (userText === "") {
             return;
         }
 
-        // Prevent multiple AI generations
+        // Prevent multiple requests
         if (isGenerating) {
             return;
         }
 
-        // Save the chat that started this generation
+        // Save the chat that started this request
         const currentChat = chat;
 
         isGenerating = true;
@@ -231,6 +219,7 @@ sendButton.addEventListener(
 
         // Disable chat history switching
         chatHistory.style.pointerEvents = "none";
+
 
         // ===============================
         // SET CHAT TITLE
@@ -261,6 +250,7 @@ sendButton.addEventListener(
         }
 
 
+        // Save chats
         localStorage.setItem(
             "chats",
             JSON.stringify(chats)
@@ -318,13 +308,59 @@ sendButton.addEventListener(
 
 
         // ===============================
-        // SIMULATE AI THINKING
+        // SEND MESSAGE TO BACKEND
         // ===============================
 
-        setTimeout(function () {
+        try {
 
+            const response = await fetch(
+                "http://localhost:3000/api/chat",
+                {
+                    method: "POST",
+
+                    headers: {
+                        "Content-Type": "application/json"
+                    },
+
+                    body: JSON.stringify({
+                        message: userText
+                    })
+                }
+            );
+
+
+            // Remove typing indicator
             typingMessage.remove();
 
+
+            // Check HTTP response
+            if (!response.ok) {
+
+                throw new Error(
+                    "Server returned " +
+                    response.status
+                );
+            }
+
+
+            const data = await response.json();
+
+
+            // Check backend response
+            if (!data.reply) {
+
+                throw new Error(
+                    "No reply received from Gemini"
+                );
+            }
+
+
+            const aiResponse = data.reply;
+
+
+            // ===============================
+            // CREATE AI MESSAGE
+            // ===============================
 
             const aiMessage =
                 document.createElement("div");
@@ -334,26 +370,14 @@ sendButton.addEventListener(
                 "ai-message"
             );
 
-
-            const aiResponse =
-                mockResponses[
-                    Math.floor(
-                        Math.random() *
-                        mockResponses.length
-                    )
-                ];
-
-
-            let index = 0;
-
-
-            // Add AI message to DOM
             messages.appendChild(aiMessage);
 
 
             // ===============================
             // STREAM AI RESPONSE
             // ===============================
+
+            let index = 0;
 
             const typingInterval =
                 setInterval(function () {
@@ -381,22 +405,21 @@ sendButton.addEventListener(
                         );
 
 
-                        // IMPORTANT:
-                        // Save response to the
-                        // original chat
-
+                        // Save AI response
                         currentChat.messages.push({
                             role: "ai",
                             content: aiResponse
                         });
 
 
+                        // Save updated chat
                         localStorage.setItem(
                             "chats",
                             JSON.stringify(chats)
                         );
 
 
+                        // Unlock UI
                         isGenerating = false;
 
                         sendButton.disabled =
@@ -411,15 +434,56 @@ sendButton.addEventListener(
                         messageInput.focus();
                     }
 
-                }, 50);
+                }, 20);
 
-        }, 1500);
+
+        } catch (error) {
+
+            console.error(
+                "Gemini Error:",
+                error
+            );
+
+
+            // Remove typing indicator
+            if (typingMessage) {
+                typingMessage.remove();
+            }
+
+
+            // Display error
+            const errorMessage =
+                document.createElement("div");
+
+            errorMessage.classList.add(
+                "message",
+                "ai-message"
+            );
+
+            errorMessage.textContent =
+                "Sorry, I couldn't get a response from Gemini.";
+
+            messages.appendChild(errorMessage);
+
+
+            // Unlock UI
+            isGenerating = false;
+
+            sendButton.disabled =
+                false;
+
+            newChatButton.disabled =
+                false;
+
+            chatHistory.style.pointerEvents =
+                "auto";
+
+            messageInput.focus();
+        }
 
 
         // Clear input
         messageInput.value = "";
-
-        messageInput.focus();
     }
 );
 
