@@ -32,7 +32,7 @@ module.exports = async function handler(req, res) {
         }
 
         const interaction = await ai.interactions.create({
-            model: "gemini-3.6-flash",
+            model: "gemini-3.8-flash",
             input: userMessage.trim()
         });
 
