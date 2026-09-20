@@ -1,0 +1,8 @@
+{
+  "name": "ai-chat-ui",
+  "version": "1.0.0",
+  "private": true,
+  "dependencies": {
+    "@google/genai": "^2.23.0"
+  }
+}
