@@ -4,7 +4,9 @@ const { GoogleGenAI } = require("@google/genai");
 require("dotenv").config();
 
 const app = express();
-const PORT = 3000;
+
+// Use the port provided by the hosting service
+const PORT = process.env.PORT || 3000;
 
 
 // ===============================
@@ -16,12 +18,11 @@ app.use(express.json());
 
 
 // ===============================
-// CHECK API KEY
+// CHECK GEMINI API KEY
 // ===============================
 
 if (!process.env.GEMINI_API_KEY) {
-    console.error("❌ GEMINI_API_KEY is not loaded.");
-    console.error("Check your backend/.env file.");
+    console.error("❌ GEMINI_API_KEY is not configured.");
     process.exit(1);
 }
 
@@ -42,7 +43,10 @@ const ai = new GoogleGenAI({
 // ===============================
 
 app.get("/", (req, res) => {
-    res.send("AI Chat Backend is running!");
+    res.json({
+        message: "AI Chat Backend is running!",
+        status: "success"
+    });
 });
 
 
@@ -57,9 +61,12 @@ app.post("/api/chat", async (req, res) => {
         const userMessage = req.body.message;
 
 
-        // Check message
-        if (!userMessage || userMessage.trim() === "") {
-
+        // Validate message
+        if (
+            !userMessage ||
+            typeof userMessage !== "string" ||
+            userMessage.trim() === ""
+        ) {
             return res.status(400).json({
                 error: "Message is required"
             });
@@ -77,7 +84,7 @@ app.post("/api/chat", async (req, res) => {
 
             model: "gemini-3.6-flash",
 
-            input: userMessage
+            input: userMessage.trim()
 
         });
 
@@ -89,6 +96,13 @@ app.post("/api/chat", async (req, res) => {
         const reply = interaction.output_text;
 
 
+        if (!reply) {
+            return res.status(500).json({
+                error: "No response received from Gemini"
+            });
+        }
+
+
         console.log("Gemini:", reply);
 
 
@@ -96,7 +110,7 @@ app.post("/api/chat", async (req, res) => {
         // SEND RESPONSE TO FRONTEND
         // ===============================
 
-        res.json({
+        res.status(200).json({
             reply: reply
         });
 
@@ -118,10 +132,10 @@ app.post("/api/chat", async (req, res) => {
 // START SERVER
 // ===============================
 
-app.listen(PORT, () => {
+app.listen(PORT, "0.0.0.0", () => {
 
     console.log(
-        `🚀 Server running on http://localhost:${PORT}`
+        `🚀 AI Chat Backend running on port ${PORT}`
     );
 
 });
